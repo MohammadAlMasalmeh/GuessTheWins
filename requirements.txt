@@ -1,0 +1,4 @@
+# Slim Vercel runtime — flask + numpy only. Full-fidelity Stage 1 (Ridge +
+# GBM trees) runs via numpy from exported model files; no sklearn/pandas/scipy.
+flask>=3.0.0
+numpy>=1.24.0

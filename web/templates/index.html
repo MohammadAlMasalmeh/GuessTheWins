@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GuessTheWins</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="felt-grain" aria-hidden="true"></div>
+  <div class="felt-vignette" aria-hidden="true"></div>
+
+  <!-- Bankroll rail: visible during play + final -->
+  <header id="hud" class="rail hidden" aria-live="polite">
+    <div class="rail-brand">GUESS <span>THE WINS</span></div>
+    <div class="rail-mid">
+      <div class="chip" aria-hidden="true">W</div>
+      <div>
+        <div class="rail-score" id="hud-score">0</div>
+        <div class="rail-label">Bankroll</div>
+      </div>
+      <div class="rail-pips" id="hud-pips" aria-hidden="true"></div>
+    </div>
+    <div class="rail-streak hidden" id="hud-streak">&times;1</div>
+  </header>
+
+  <main id="app">
+
+    <!-- SCREEN 1: START — house rules / admission -->
+    <section id="screen-start" class="screen">
+      <div class="ticket ticket-start" id="start-ticket">
+        <div class="ticket-grain" aria-hidden="true"></div>
+        <div class="ticket-head">
+          <div class="market">
+            <span class="kicker">House Rules</span>
+            <h1 class="title wordmark-block">
+              <span>Guess</span>
+              <span>The Wins</span>
+            </h1>
+          </div>
+        </div>
+        <p class="fineprint">Five strangers. One roster. Set your line on how many wins they&rsquo;d take in an 82-game season.</p>
+
+        <fieldset class="option-group">
+          <legend class="section-label">Format</legend>
+          <div class="segmented">
+            <label class="segment-option">
+              <input type="radio" name="format" value="daily" class="sr-input" checked>
+              <span class="segment-inner">
+                <span class="segment-title">Daily</span>
+                <span class="segment-desc">Same boards worldwide</span>
+              </span>
+            </label>
+            <label class="segment-option">
+              <input type="radio" name="format" value="free" class="sr-input">
+              <span class="segment-inner">
+                <span class="segment-title">Free Play</span>
+                <span class="segment-desc">Fresh random boards</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div id="daily-panel" class="daily-panel">
+          <p class="daily-date" id="daily-date-label">Loading today&rsquo;s boards&hellip;</p>
+          <p class="daily-blurb">Everyone gets the same five medium boards. Competitive rules &mdash; no fame hints. Resets at midnight UTC.</p>
+          <div id="daily-done" class="daily-done hidden">
+            <p class="daily-done-score" id="daily-done-score"></p>
+            <p class="daily-done-note" id="daily-done-note">You already settled today&rsquo;s slip.</p>
+            <button type="button" id="btn-share-daily" class="btn-secondary btn-block">Share Result</button>
+          </div>
+        </div>
+
+        <div id="free-panel" class="free-panel hidden">
+          <fieldset class="option-group">
+            <legend class="section-label">Stake Tier</legend>
+            <div class="tier-list">
+              <label class="tier-row">
+                <input type="radio" name="difficulty" value="easy" class="sr-input">
+                <span class="tier-inner">
+                  <span class="tier-title">Easy</span>
+                  <span class="tier-desc">Legends &amp; stars</span>
+                </span>
+              </label>
+              <label class="tier-row">
+                <input type="radio" name="difficulty" value="medium" class="sr-input" checked>
+                <span class="tier-inner">
+                  <span class="tier-title">Medium</span>
+                  <span class="tier-desc">A realistic mix</span>
+                  <span class="tier-badge">Recommended</span>
+                </span>
+              </label>
+              <label class="tier-row">
+                <input type="radio" name="difficulty" value="hard" class="sr-input">
+                <span class="tier-inner">
+                  <span class="tier-title">Hard</span>
+                  <span class="tier-desc">Deep bench</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="option-group">
+            <legend class="section-label">Market</legend>
+            <div class="segmented">
+              <label class="segment-option">
+                <input type="radio" name="mode" value="competitive" class="sr-input" checked>
+                <span class="segment-inner">
+                  <span class="segment-title">Competitive</span>
+                  <span class="segment-desc">No hints</span>
+                </span>
+              </label>
+              <label class="segment-option">
+                <input type="radio" name="mode" value="casual" class="sr-input">
+                <span class="segment-inner">
+                  <span class="segment-title">Casual</span>
+                  <span class="segment-desc">Fame tiers shown</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <button id="btn-deal" class="btn-primary btn-block">Play Today&rsquo;s Boards</button>
+        <p id="start-error" class="error-text" role="alert"></p>
+        <p class="footer-fine" id="start-footer">House rules apply &middot; Five boards &middot; Shared worldwide</p>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: LOADING -->
+    <section id="screen-loading" class="screen hidden">
+      <div class="loading-wrap">
+        <div class="deal-stack" aria-hidden="true">
+          <div class="deal-card c1"></div>
+          <div class="deal-card c2"></div>
+          <div class="deal-card c3"></div>
+        </div>
+        <p class="loading-text" id="loading-text">Opening the window&hellip;</p>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: TEAM STAGE — wager ticket -->
+    <section id="screen-team" class="screen hidden">
+      <div class="stage-wrap">
+        <div class="ticket ticket-play" id="team-card">
+          <div class="ticket-grain" aria-hidden="true"></div>
+
+          <div class="ticket-head">
+            <div class="market">
+              <span class="kicker">Season Win Total</span>
+              <h2 class="title" id="team-heading">Five-Man Roster</h2>
+            </div>
+            <div class="board-no">
+              <div class="n" id="board-num">01</div>
+              <div class="of">of 05</div>
+            </div>
+          </div>
+
+          <div class="ticket-meta">
+            <span class="diff-chip" id="team-diff-chip"></span>
+          </div>
+
+          <div class="lineup">
+            <div class="lineup-caption"><span>Lineup</span><span>Season &middot; Team</span></div>
+            <div class="player-list" id="player-list"></div>
+          </div>
+
+          <!-- BET area -->
+          <div class="bet-area" id="bet-area">
+            <div class="line-block">
+              <div class="line-label">Your Line</div>
+              <div class="line-readout">
+                <span class="big" id="bet-value">41</span>
+                <span class="unit">WINS</span>
+              </div>
+              <div class="line-sub" id="bet-sub">projected record 41&ndash;41 &middot; 50.0% win rate</div>
+              <div class="slider-wrap">
+                <input type="range" id="bet-slider" class="bet-slider" min="0" max="82" step="1" value="41" aria-label="Win total guess">
+                <div class="scale"><span>0</span><span>41</span><span>82</span></div>
+              </div>
+            </div>
+            <button id="btn-lock" class="btn-primary btn-block">Lock Bet</button>
+            <p id="team-error" class="error-text" role="alert"></p>
+            <p class="footer-fine">House rules apply &middot; No takebacks</p>
+          </div>
+
+          <!-- REVEAL area — graded ticket -->
+          <div class="reveal-area hidden" id="reveal-area">
+            <div class="graded-block">
+              <div class="graded-label">House Result</div>
+              <div class="graded-readout">
+                <span class="big" id="reveal-actual-value">0</span>
+                <span class="unit">WINS</span>
+              </div>
+              <p class="graded-sub" id="reveal-actual-sub"></p>
+            </div>
+
+            <div class="compare-block">
+              <div class="axis-labels">
+                <span>0</span>
+                <span class="axis-mid" id="bar-caption">Likely range</span>
+                <span>82</span>
+              </div>
+              <div class="axis-track" id="axis-track">
+                <div class="axis-range" id="bar-range"></div>
+                <div class="axis-marker you" id="bar-you-marker" title="Your line"></div>
+                <div class="axis-marker actual" id="bar-actual-marker" title="House result"></div>
+              </div>
+              <div class="axis-legend">
+                <span><i class="swatch you"></i> Your line <strong id="bar-you-value">0</strong></span>
+                <span><i class="swatch actual"></i> House <strong id="bar-actual-value">0</strong></span>
+              </div>
+              <span class="ood-pill hidden" id="ood-pill">Wild roster &mdash; house isn&rsquo;t sure</span>
+            </div>
+
+            <div class="verdict-wrap">
+              <div class="verdict-stamp" id="verdict-stamp"></div>
+              <p class="verdict-offby" id="verdict-offby"></p>
+              <div class="points-fly" id="points-fly"></div>
+            </div>
+
+            <button id="btn-next" class="btn-primary btn-block hidden">Next Board</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 4: FINAL — settlement stub -->
+    <section id="screen-final" class="screen hidden">
+      <div class="ticket ticket-final">
+        <div class="ticket-grain" aria-hidden="true"></div>
+        <div class="ticket-head">
+          <div class="market">
+            <span class="kicker">Settlement</span>
+            <h2 class="title">Final Score</h2>
+          </div>
+        </div>
+        <div class="final-total" id="final-total">0</div>
+        <p class="final-of-max" id="final-of-max">0 / 7.5k</p>
+        <div class="final-meter" aria-hidden="true">
+          <div class="final-meter-fill" id="final-meter-fill"></div>
+        </div>
+        <p class="final-pct" id="final-pct"></p>
+        <p class="final-verdict" id="final-verdict"></p>
+        <div id="final-recap" class="final-recap"></div>
+        <button id="btn-share" class="btn-secondary btn-block hidden">Share Result</button>
+        <button id="btn-again" class="btn-primary btn-block">Cash Out &amp; Replay</button>
+        <p class="footer-fine" id="final-footer">Thanks for playing &middot; The window is always open</p>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="confetti-layer" id="confetti-layer" aria-hidden="true"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

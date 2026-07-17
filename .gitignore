@@ -1,0 +1,53 @@
+# Local / IDE / secrets
+.claude/
+.cursor/
+.idea/
+.vscode/
+.vercel/
+.venv/
+venv/
+.env
+.env*
+.env.local
+.DS_Store
+*.swp
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Scraping / pipeline (local only — not needed to run the game)
+cache/
+logs/
+checkpoints/
+scrape_*.py
+backfill_*.py
+run_pipeline.py
+validate.py
+compute_roles.py
+compute_fame_tier.py
+pipeline_utils.py
+team_registry.py
+requirements-pipeline.txt
+
+# Agent / research docs
+NEXT_AGENT_PROMPT.md
+FEATURE_SPEC.md
+MODELING_DECISIONS.md
+
+# Full training DB and sklearn weights (runtime uses slim exports)
+nba_data.db
+model/stage1_dataset.parquet
+model/stage1_gbm.joblib
+model/stage1_ridge.joblib
+model/stage1_ridge_medians.joblib
+model/stage1_features.json
+model/stage1.py
+model/export_runtime.py
+model/validate.py
+model/test_teams.py
+model/test_teams_report.json
+model/validation_report.json
+model/random_roster_*.json
+model/fit_review_*.json
+features/dataset.py
+web/mockups/
