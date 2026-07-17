@@ -12,6 +12,13 @@ compute_fame_tier.py from career points/win-shares/VORP/accolades) so
 recognizable players dominate, with a `difficulty` knob controlling how much
 long-tail/obscure talent is allowed to mix in.
 
+Era gates keep "ball knowledge" fair without shrinking obscure odds:
+  - Pre-1970 seasons only deal LEGEND/STAR names (Wilt, Russell, Oscar,
+    Cousy, Havlicek, …) — not 1950s–60s role-player trivia.
+  - ROLE_PLAYER / OBSCURE only deal from 1990 onward, and OBSCURE must clear
+    a fame-score floor so "obscure" means deep-cut-but-placeable (Tim Legler,
+    Brandon Knight), not a random cup-of-coffee.
+
 Rosters are dealt into fixed lineup slots (G, G, F, F, C) so a Guard slot
 never gets Tim Duncan.
 """
@@ -43,6 +50,37 @@ DIFFICULTY_TIER_WEIGHTS: Dict[str, Dict[str, float]] = {
     "medium": {"LEGEND": 30, "STAR": 28, "SOLID_STARTER": 22, "ROLE_PLAYER": 13, "OBSCURE": 7},
     "hard":   {"LEGEND": 14, "STAR": 16, "SOLID_STARTER": 20, "ROLE_PLAYER": 22, "OBSCURE": 28},
 }
+
+# Seasons with start year < this are pre-modern (e.g. "1969-70" → 1969).
+PRE_1970_CUTOFF = 1970
+# Deep-bench tiers only appear from this season start year onward (90s+).
+DEPTH_ERA_CUTOFF = 1990
+DEPTH_TIERS = frozenset({"ROLE_PLAYER", "OBSCURE"})
+# Pre-1970 cards must be household-name tiers only.
+PRE_1970_TIERS = frozenset({"LEGEND", "STAR"})
+# Within OBSCURE, skip the long tail of true nobodies (~p90 of the tier).
+# Tier weights are unchanged — this only filters who can fill that mass.
+OBSCURE_MIN_FAME_SCORE = 9.0
+
+
+def season_start_year(season: str) -> int:
+    """Parse '2015-16' → 2015. Falls back to 0 on malformed strings."""
+    try:
+        return int(str(season).split("-", 1)[0])
+    except (TypeError, ValueError):
+        return 0
+
+
+def season_allowed_for_player(season: str, tier: str, fame_score: float) -> bool:
+    """Era / recognition gate for a single player-season card."""
+    year = season_start_year(season)
+    if year < PRE_1970_CUTOFF:
+        return tier in PRE_1970_TIERS
+    if tier in DEPTH_TIERS and year < DEPTH_ERA_CUTOFF:
+        return False
+    if tier == "OBSCURE" and fame_score < OBSCURE_MIN_FAME_SCORE:
+        return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -92,6 +130,7 @@ class RosterGenerator:
             ):
                 self._roles[(player_id, season)] = role
 
+            raw_seasons: Dict[int, List[_SeasonOption]] = {}
             for row in conn.execute(
                 """
                 SELECT player_id, season, team_id, minutes_total,
@@ -103,7 +142,7 @@ class RosterGenerator:
                 (MIN_SEASON_MINUTES, MIN_SEASON_GAMES),
             ).fetchall():
                 player_id, season, team_id, minutes_total, ast_pct, trb_pct, blk_pct, three_par = row
-                self._seasons.setdefault(player_id, []).append(
+                raw_seasons.setdefault(player_id, []).append(
                     _SeasonOption(
                         season=season,
                         team_id=team_id,
@@ -122,10 +161,20 @@ class RosterGenerator:
                 JOIN player_fame_tier f ON f.player_id = p.player_id
                 """
             ).fetchall():
-                if player_id not in self._seasons:
-                    continue  # no season clears the minutes/games floor
-                # Position from the player's highest-minutes qualifying season.
-                best = max(self._seasons[player_id], key=lambda o: o.weight)
+                options = raw_seasons.get(player_id)
+                if not options:
+                    continue
+                # Drop seasons that fail the era gate before position inference.
+                options = [
+                    o
+                    for o in options
+                    if season_allowed_for_player(o.season, tier, float(fame_score))
+                ]
+                if not options:
+                    continue
+
+                self._seasons[player_id] = options
+                best = max(options, key=lambda o: o.weight)
                 role = self._roles.get((player_id, best.season))
                 position = classify_position(
                     best.ast_pct, best.trb_pct, best.blk_pct, best.three_par, role
